@@ -17,6 +17,7 @@ import torch
 import torch.nn as nn
 from einops import rearrange
 
+# 引入 Transformer UNet 模組
 from self_attention_cv.UnetTr.modules import TranspConv3DBlock, BlueBlock, Conv3DBlock
 from self_attention_cv.UnetTr.volume_embedding import Embeddings3D
 from self_attention_cv.transformer_vanilla import TransformerBlock
@@ -31,47 +32,56 @@ import sys
 import warnings
 warnings.filterwarnings("ignore")
 
+# 定義數據處理的參數
 
 box_size = 32  # Expected Dimensions to pass to Transformer Unet
 core_size = 20  # core of the image where we dnt have to worry about boundary issues
 
-BATCH_SIZE = 1  # for now
-DATALOADERS = 1
+BATCH_SIZE = 1  # for now # 當前批次大小
+DATALOADERS = 1 # 數據加載器的數量
 
-data_splits = list()
-collect_pred_probs = dict()
-idx_vals = list()
-raw_logits = list()
-idx_val_list = list()
-
+data_splits = list() # 存儲數據集切分的列表
+collect_pred_probs = dict() # 用於存儲預測的概率
+idx_vals = list() # 存儲索引值
+raw_logits = list() # 存儲原始的預測logits
+idx_val_list = list() # 存儲最終的索引值列表
 
 
 def prepare_data(dataset_dir, density_map_name):
+    # 準備數據：從資料夾中獲取數據切分列表
     data_splits_old = [splits for splits in os.listdir(dataset_dir)]
     for arr in range(len(data_splits_old)):
+        # 根據密度圖名稱和切分索引來生成文件名稱
         data_splits.append(f"{density_map_name}_{arr}.npz")
 
 
 
 class CryoData(Dataset):
+    # 定義PyTorch的數據集類別
     def __init__(self, root, transform=None, target_transform=None):
         self.root = root
         self.transform = transform
         self.target_transform = target_transform
 
     def __len__(self):
+        # 返回數據集的大小
         return len(data_splits)
 
     def __getitem__(self, idx):
+        # 獲取對應的數據文件名
         cryodata = data_splits[idx]
         cryodata = cryodata.strip("\n")
+        
+        # 加載數據
         loaded_data = np.load(f"{self.root}/{cryodata}")
+        # 提取蛋白質網格數據
         protein_manifest = loaded_data['protein_grid']
+        # 轉換為Tensor
         protein_torch = torch.from_numpy(protein_manifest).type(torch.FloatTensor)
-        return [protein_torch]
+        return [protein_torch] # 返回處理後的蛋白質數據
 
 
-
+# 定義 Transformer 編碼器
 class TransformerEncoder(nn.Module):
     def __init__(self, embed_dim, num_heads, num_layers, dropout, extract_layers, dim_linear_block):
         super().__init__()
@@ -81,6 +91,7 @@ class TransformerEncoder(nn.Module):
         # make TransformerBlock device
         self.block_list = nn.ModuleList()
         for _ in range(num_layers):
+            # 添加 TransformerBlock 層
             self.block_list.append(
                 TransformerBlock(dim=embed_dim, heads=num_heads, dim_linear_block=dim_linear_block, dropout=dropout,
                                  prenorm=True))
@@ -88,13 +99,14 @@ class TransformerEncoder(nn.Module):
     def forward(self, x):
         extract_layers = []
         for depth, layer_block in enumerate(self.block_list):
-            x = layer_block(x)
+            x = layer_block(x) # 前向傳播
             if (depth + 1) in self.extract_layers:
-                extract_layers.append(x)
+                extract_layers.append(x) # 根據需要提取特定層的輸出
         return extract_layers
 
 
 class Transformer_UNET(nn.Module):
+    # 定義 Transformer U-Net 模型
     def __init__(self, img_shape=(64, 64, 64), input_dim=1, output_dim=21, embed_dim=768, patch_size=16,
                  num_heads=12, dropout=0.0, ext_layers=[3, 6, 9, 12], norm="instance", base_filters=16,
                  dim_linear_block=3072):
@@ -110,14 +122,18 @@ class Transformer_UNET(nn.Module):
         self.ext_layers = ext_layers
         self.patch_dim = [int(x / patch_size) for x in img_shape]
 
+        # 根據選擇進行歸一化
         self.norm = nn.BatchNorm3d if norm == 'batch' else nn.InstanceNorm3d
 
+        # 3D嵌入層
         self.embed = Embeddings3D(input_dim=input_dim, embed_dim=embed_dim, cube_size=img_shape,
                                   patch_size=patch_size, dropout=dropout)
 
+        # Transformer編碼器
         self.transformer = TransformerEncoder(embed_dim, num_heads, self.num_layers, dropout, ext_layers,
                                               dim_linear_block=dim_linear_block)
-
+       
+        # 卷積層
         self.init_conv = Conv3DBlock(input_dim, base_filters, double=True, norm=self.norm)
 
         # blue block
@@ -151,6 +167,7 @@ class Transformer_UNET(nn.Module):
 
     def forward(self, x):
         transformer_input = self.embed(x)
+        # 將8*768 轉回 16×16×16×768
         z3, z6, z9, z12 = map(
             lambda t: rearrange(t, 'b (x y z) d -> b d x y z', x=self.patch_dim[0], y=self.patch_dim[1],
                                 z=self.patch_dim[2]), self.transformer(transformer_input))
@@ -162,12 +179,13 @@ class Transformer_UNET(nn.Module):
         z9 = self.z9_blue_conv(z9)
 
         # Green blocks for z12
+        # 將 Z_12 (16×16×16×768) 還原成 32×32×32×768
         z12 = self.z12_deconv(z12)
 
         # concat + yellow conv
 
         y = torch.cat([z12, z9], dim=1)
-        y = self.z9_conv(y)
+        y = self.z9_conv(y) # Conv3D 3×3×3, 輸出 (32×32×32×16)
 
         # Green blocks for z6
         y = self.z9_deconv(y)
@@ -200,18 +218,21 @@ class VoxelClassify(pl.LightningModule):
     def forward(self, data):
         x = self.model(data)
         return x
-
+    
     def predict_step(self, batch, batch_idx: int, dataloader_idx: int = None):
         protein_data = batch[0]
-        protein_data = torch.unsqueeze(protein_data, 1)
+        protein_data = torch.unsqueeze(protein_data, 1) # 增加額外的維度，符合模型輸入要求
         pred = self(protein_data)
-        s = torch.softmax(pred[0], dim=0)
-        s_permute = torch.permute(s, (1, 2, 3, 0))
-        idx_val_np = np.empty(shape=(32, 32, 32), dtype='S30')
+        
+        s = torch.softmax(pred[0], dim=0) # 計算softmax概率
+        s_permute = torch.permute(s, (1, 2, 3, 0)) # 重排概率值
+        idx_val_np = np.empty(shape=(32, 32, 32), dtype='S30') # 用來存儲最終的預測值
 
         # used softmax for hidden markov model.
-        a = torch.argmax(pred[0], dim=0)
+        # 使用softmax的結果來做最終預測
+        a = torch.argmax(pred[0], dim=0)# 取最大概率的索引
 
+        # 儲存每一個預測結果
         for i in range(len(s_permute)):
             for j in range(len(s_permute[i])):
                 for k in range(len(s_permute[i][j])):
@@ -220,8 +241,8 @@ class VoxelClassify(pl.LightningModule):
                     v = f'{batch_idx}_{i}_{j}_{k}'
                     idx_val_np[i][j][k] = v
         idx_val_list.append(idx_val_np)
-        return a
-
+        return a # 返回最大概率的預測值
+    
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
@@ -230,52 +251,66 @@ class VoxelClassify(pl.LightningModule):
 
 
 def infer_classifier(density_map_splits_dir, input_data_dir, density_map_name, amino_checkpoint, infer_run_on, infer_on_gpu):
-    pl.seed_everything(42)
+    pl.seed_everything(42) # 設置隨機種子，確保實驗可重現
     parser = ArgumentParser()
     parser = pl.Trainer.add_argparse_args(parser)
     parser = VoxelClassify.add_model_specific_args(parser)
 
-    prepare_data(dataset_dir=density_map_splits_dir, density_map_name=density_map_name)
-    dataset = CryoData(density_map_splits_dir)
+    prepare_data(dataset_dir=density_map_splits_dir, density_map_name=density_map_name) # 準備數據
+    dataset = CryoData(density_map_splits_dir) # 加載數據
     test_loader = DataLoader(dataset=dataset, batch_size=BATCH_SIZE, shuffle=False, pin_memory=False,
-                             num_workers=1)
+                             num_workers=1) # 創建數據加載器
 
     args, unknown = parser.parse_known_args()
-    args.detect_anomaly=True
-    args.enable_model_summary = True
+    args.detect_anomaly=True # 啟用異常檢測
+    args.enable_model_summary = True # 啟用模型摘要
     if infer_run_on == "gpu":
         args.accelerator = "gpu"
-        args.devices = [infer_on_gpu]
+        args.devices = [infer_on_gpu] # 設置使用的GPU設備
     else:
-        args.accelerator = "cpu"
+        args.accelerator = "cpu" # 使用CPU運行
 
+    # 創建模型
     model = VoxelClassify(learning_rate=1e-4, img_shape=(32, 32, 32), input_dim=1, output_dim=21, embed_dim=768,
                           patch_size=16, num_heads=12, dropout=0.0, ext_layers=[3, 6, 9, 12], norm="instance", 
                           base_filters=16, dim_linear_block=3072)
 
+    # 設置訓練器
     trainer = pl.Trainer.from_argparse_args(args)
+    
+    # 預測結果
     predicts = trainer.predict(model, dataloaders=test_loader, ckpt_path=amino_checkpoint)
+    
+    # 轉換為numpy數組
     for pred in range(len(predicts)):
-        predicts[pred] = predicts[pred].numpy()
+        predicts[pred] = predicts[pred].numpy() # 轉換為numpy數組
+    
+    # 保存 predicts 至 .npy 檔案
+    # npy_filename = f"{input_data_dir}/{density_map_name}/{density_map_name}_amino_predicts.npy"
+    # np.save(npy_filename, np.array(predicts, dtype=object))  # 使用 dtype=object 以保留變長數據
+    # print(f"Predictions saved as:\n - {npy_filename}")
+    
+    # 讀取mrc檔案
+    org_map = f"{input_data_dir}/{density_map_name}/emd_normalized_map.mrc" # 原始密度圖
+    org_map = mrcfile.open(org_map, mode='r') # 讀取mrc檔案
 
-    org_map = f"{input_data_dir}/{density_map_name}/emd_normalized_map.mrc"
-    org_map = mrcfile.open(org_map, mode='r')
-
-    recon, idx_val_mat = reconstruct_map(manifest=predicts, idx_val_np=idx_val_list, image_shape=org_map.data.shape)
-    filename = "amino_predicted.mrc"
+    recon, idx_val_mat = reconstruct_map(manifest=predicts, idx_val_np=idx_val_list, image_shape=org_map.data.shape) # 重建圖像
+    filename = "amino_predicted.mrc" # 預測結果保存的檔案名
     outfilename = f"{input_data_dir}/{density_map_name}/{density_map_name}_{filename}"
     with mrcfile.new(outfilename, overwrite=True) as mrc:
-        mrc.set_data(recon)
+        mrc.set_data(recon) # 保存預測結果到mrc檔案
         mrc.voxel_size = 1
         mrc.header.origin = org_map.header.origin
         mrc.close()
 
     # save the probabilities
+    # 保存預測概率
     file_prob = f"{input_data_dir}/{density_map_name}/{density_map_name}_probabilities_amino.txt"
-    save_probs(outfilename, idx_val_mat, file_prob)
+    save_probs(outfilename, idx_val_mat, file_prob) # 保存概率值
 
 
 def reconstruct_map(manifest, idx_val_np, image_shape):
+    # 根據Transformer Unet的輸出重建完整的蛋白質圖像
     # takes the output of Transformer Unet and reconstructs the full dimension of the protein
     extract_start = int((box_size - core_size) / 2)
     extract_end = int((box_size - core_size) / 2) + core_size
@@ -305,7 +340,7 @@ def reconstruct_map(manifest, idx_val_np, image_shape):
     idx_val_np_mat = idx_val_mat[:image_shape[0], :image_shape[1], :image_shape[2]]
     return float_reconstruct_image, idx_val_np_mat
 
-
+# 計算manifest的維度，這樣可以確保重建時不會超出邊界
 def get_manifest_dimensions(image_shape):
     dimensions = [0, 0, 0]
     dimensions[0] = math.ceil(image_shape[0] / core_size) * core_size
@@ -317,7 +352,7 @@ def get_manifest_dimensions(image_shape):
 def get_xyz(idx, voxel, origin):
     return (idx * voxel) + origin
 
-
+# 保存預測概率到文件中
 def save_probs(mrc_file, idx_file, file_prob):
     mrc_map = mrcfile.open(mrc_file, mode='r')
     x_origin = mrc_map.header.origin['x']

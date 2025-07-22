@@ -197,12 +197,17 @@ class VoxelClassify(pl.LightningModule):
 
     def forward(self, data):
         x = self.model(data)
-        return x
-
+        return x    
+    
     def predict_step(self, batch, batch_idx: int, dataloader_idx: int = None):
         protein_data = batch[0]
-        protein_data = torch.unsqueeze(protein_data, 1)
-        pred = self(protein_data)
+        protein_data = torch.unsqueeze(protein_data, 1) # 在維度 1 增加一個 channel 維度
+        pred = self(protein_data) # 經過模型推論，得到 pred（模型輸出） 
+        
+        # **檢查 pred 的形狀和數值範圍**
+        print(f"ATOM_Batch {batch_idx} - Model Raw Output Shape: {pred.shape}")
+        print(f"ATOM_Batch {batch_idx} - Pred Min: {pred.min().item()}, Max: {pred.max().item()}")
+        
         s = torch.softmax(pred[0], dim=0)
         s_permute = torch.permute(s, (1, 2, 3, 0))
         idx_val_np = np.empty(shape=(32, 32, 32), dtype='S30')
@@ -257,6 +262,12 @@ def infer_classifier(density_map_splits_dir, input_data_dir, density_map_name, a
     for pred in range(len(predicts)):
         predicts[pred] = predicts[pred].numpy()
 
+    
+    # 保存 predicts 至 .npy 檔案
+    # npy_filename = f"{input_data_dir}/{density_map_name}/{density_map_name}_atom_predicts.npy"
+    # np.save(npy_filename, np.array(predicts, dtype=object))  # 使用 dtype=object 以保留變長數據
+    # print(f"Predictions saved as:\n - {npy_filename}")
+    
 
     org_map = f"{input_data_dir}/{density_map_name}/emd_normalized_map.mrc"
     org_map = mrcfile.open(org_map, mode='r')
