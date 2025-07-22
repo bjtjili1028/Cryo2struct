@@ -1,13 +1,14 @@
 density_map_name: '34610'
-input_data_dir: 'input' # provide absolute path of input directory
-amino_checkpoint: 'models/amino_acid_type.ckpt' # provide absolute path of amino acid checkpoint
-atom_checkpoint: 'models/atom_type.ckpt' # provide absolute path of atom checkpoint
-confidence_score_models: 'models' # provide absolute path of models directory
-infer_run_on: 'cpu' # options- cpu or gpu
+input_data_dir: '/media/ray-suen/TRANSCEND1/huei/Cryo2Struct/input' # provide absolute path of input directory
+amino_checkpoint: '/media/ray-suen/TRANSCEND1/huei/Cryo2Struct/models/amino_acid_type.ckpt' # provide absolute path of amino acid checkpoint
+atom_checkpoint: '/media/ray-suen/TRANSCEND1/huei/Cryo2Struct/models/atom_type.ckpt' # provide absolute path of atom checkpoint
+confidence_score_models: '/media/ray-suen/TRANSCEND1/huei/Cryo2Struct/models' # provide absolute path of models directory
+infer_run_on: 'gpu' # options- cpu or gpu
 infer_on_gpu: 0
+split_mod: 1 # 1是取最大機率值  2是取0.4當作標準
 threshold: 0.4 # threshold for picking carbon alpha atoms
-clustering_threshold: 2 # clustering proximity
+clustering_threshold: 3 # clustering proximity
+CA_C_DIST: 2 # C–CA 最大允許距離
+CA_N_DIST: 2 # N–CA 最大允許距離
 use_sequence: 'full' # options- full or atomic_chain
 std_lambda: 10
-
-
