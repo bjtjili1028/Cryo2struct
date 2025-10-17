@@ -5,6 +5,7 @@ Created on 04 Sep 2023 06:16 AM
 """
 
 import time  # 用於計算執行時間
+from datetime import date  # 用於處理日期
 import argparse  # 用於處理命令行參數 
 import yaml  # 用於讀取yml格式的配置文件 
 import os  # 用於處理檔案和目錄 
@@ -171,6 +172,7 @@ def main():
     # 打印配置信息
     for key,value in config_dict.items():
         print("%s : %s"%(key, value))
+    print("Date:",date.today())
     print("\n- This might take a bit. Time for a coffee break, maybe! -")
     
     # 進行預測
