@@ -12,7 +12,7 @@ import os  # 用於處理檔案和目錄
 import shutil  # 用於刪除目錄和文件 
 import threading  # 用於創建和管理線程
 
-from utils import get_probs_cords_from_atom_amino, clustering_centroid, grid_division, clustering_centroid_for_c_n  # 自定義的工具函數 
+from utils import get_probs_cords_from_atom_amino, clustering_centroid, grid_division, clustering_centroid_for_c_n, atom_pick  # 自定義的工具函數 
 from viterbi import alignment  # 用於viterbi演算法的對齊 
 import subprocess  # 用於執行外部命令 
 
@@ -68,7 +68,7 @@ def make_predictions(config_dict):
     density_map_dir = os.path.join(config_dict['input_data_dir'],config_dict['density_map_name'])
     density_map_split_dir = os.path.join(density_map_dir, f"{config_dict['density_map_name']}_splits")
     # 設定腳本名稱和檢查點名稱
-    script_name = ['../../infer/atom_inference.py', '../../infer/amino_inference.py']
+    script_name = ['../../../../infer/atom_inference.py', '../../../../infer/amino_inference.py']
     checkpoint_name = ['atom_checkpoint', 'amino_checkpoint']
 
     # 執行每一個推斷腳本
@@ -137,7 +137,7 @@ def extract_probs_cords_from_atom_amino(config_dict):
 
     if os.path.exists(probability_file_amino_common_emi):
         os.remove(probability_file_amino_common_emi)
-    
+    ##################################################################################
     ############# 分割三種骨幹原子 #####################
     get_probs_cords_from_atom_amino.split_atom_file(
                     probability_file_atom=probability_file_atom, 
@@ -147,21 +147,58 @@ def extract_probs_cords_from_atom_amino(config_dict):
                     ca_threshold = config_dict['threshold'],
                     mode=config_dict['split_mod'] # mod=1是取最大機率值  mod=2是取0.4當作標準 
                     ) 
+    ############# new_atom_pick ########################################################
+    # # cal base_target
+    # fasta_file = [f for f in os.listdir(f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}") if f.endswith(".fasta")]
+    # fasta_file.sort()
+    # base_target = atom_pick.determine_target_count(fasta_file[0])
+    # target_coverage = int(base_target * config_dict['coverage_factor'])
+    # print(f"\n[GRID] cf={config_dict['coverage_factor']:.2f} → target_atoms={target_coverage}")
+
+    # # 基於自適應閾值，乘上倍率
+    # ca_t, n_t, c_t = atom_pick.adaptive_threshold_analysis(probability_file_atom, target_coverage)
+    # def clamp01(x): return max(0.0, min(1.0, float(x)))
     
+    # ca_t = clamp01(ca_t * config_dict['ca_mult'])
+    # n_t  = clamp01(n_t  * config_dict['n_mult'])
+    # c_t  = clamp01(c_t  * config_dict['c_mult'])
+
+    # print(f"[GRID] thresholds  CA={ca_t:.4f} (x{config_dict['ca_mult']}), N={n_t:.4f} (x{config_dict['n_mult']}), C={c_t:.4f} (x{config_dict['c_mult']})")
+    
+    # # 3) 解析概率點
+    # ca_pts, n_pts, c_pts = atom_pick.parse_probabilities(probability_file_atom, ca_t, n_t, c_t)
+    # print(f"After Thresholding：CA: len({ca_pts}), N: len({n_pts}), C: len({c_pts})\n")
+
+    # # 4) NMS
+    # ca_nms,ca_final_r = atom_pick.nms_kdtree_adaptive(ca_pts,config_dict['nms_radius'], max_points=target_coverage)
+    # n_nms,n_final_r  = atom_pick.nms_kdtree_adaptive(n_pts, config_dict['nms_radius'], max_points=int(target_coverage))
+    # c_nms,c_final_r  = atom_pick.nms_kdtree_adaptive(c_pts, config_dict['nms_radius'], max_points=target_coverage)
+    # print(f"After NMS：CA: len({ca_nms}), N: len({n_nms}), C: len({c_nms})\n")
+    # print(f"CA_final_nms_r:{ca_final_r},N_final_nms_r:{n_final_r},C_final_nms_r:{c_final_r}\n")
+
+    # # output
+    # atom_pick.write_centroid_file(ca_nms, split_output_ca)
+    # atom_pick.write_centroid_file(n_nms, split_output_n)
+    # atom_pick.write_centroid_file(c_nms, split_output_c)
+
+    ##################################################################################
     # 計算並保存概率和坐標    
     get_probs_cords_from_atom_amino.get_joint_probabity_common_threshold(
                     probability_file_atom=probability_file_atom_spilt_ca,  # 原本使用 probability_file_atom
                     probability_file_amino_atom_common = probability_file_amino_atom_common_emi, 
                     probability_file_amino = probability_file_amino, 
                     s_c=save_cords, threshold = config_dict['threshold'],
+                    # s_c=save_cords, threshold = ca_t,
                     probability_file_amino_atom_common_ca_prob = probability_file_amino_atom_common_ca_prob)
-
+    
+##################################################################################
 # 執行聚類來準備發射和轉換矩陣
 def cluster_emission_transition(config_dict):
     save_cords, save_probs_aa, save_ca_probs= clustering_centroid.main(config_dict)
     combined_output_file_c, coords_output_file_c, save_cords_c,combined_output_file_n, coords_output_file_n, save_cords_n = clustering_centroid_for_c_n.main(config_dict) 
     return save_cords, save_probs_aa, save_ca_probs,combined_output_file_c, coords_output_file_c, save_cords_c,combined_output_file_n, coords_output_file_n, save_cords_n
 
+##################################################################################
 # 主函數，執行整個流程
 def main():
     args = parse_arguments() # 解析命令行參數

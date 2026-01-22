@@ -75,6 +75,37 @@ def centroid_with_prob(input_file, combined_output_file, coords_output_file, pro
             f_coords.write(f"{x_avg} {y_avg} {z_avg}\n")
             f_prob.write(f"{prob_avg}\n")
 
+
+# def centroid_with_prob(input_file, combined_output_file, coords_output_file, prob_output_file, thres=None):
+#     """
+#     不做 clustering，只負責讀取 input 檔並拆成三個輸出檔
+#     """
+#     with open(input_file, 'r') as f_in, \
+#          open(combined_output_file, 'w') as f_combined, \
+#          open(coords_output_file, 'w') as f_coords, \
+#          open(prob_output_file, 'w') as f_prob:
+
+#         for line in f_in:
+#             line = line.strip()
+#             if not line:
+#                 continue
+#             try:
+#                 # 假設每行格式為 "[x, y, z], prob"
+#                 coord_part, prob_part = line.split("],", 1)
+#                 coord = ast.literal_eval(coord_part + "]")
+#                 prob = float(prob_part.strip())
+
+#                 x, y, z = coord[:3]
+
+#                 f_combined.write(f"{x} {y} {z}, {prob}\n")
+#                 f_coords.write(f"{x} {y} {z}\n")
+#                 f_prob.write(f"{prob}\n")
+
+#             except Exception as e:
+#                 print("解析錯誤:", line, e)
+#                 continue
+
+
 # 範例使用
 # if __name__ == "__main__":
 #     # 例如處理 C 的資料，對 N 的資料使用相同邏輯，只需換成對應檔案名稱
@@ -108,6 +139,7 @@ def main(config_dict):
     
     # 依據設定的閾值進行聚類，並計算每個群組的質心與平均機率
     threshold = config_dict['clustering_threshold']
+    # threshold = None
     centroid_with_prob(cord_data_c, combined_output_file_c, coords_output_file_c, save_cords_c, threshold)
     centroid_with_prob(cord_data_n, combined_output_file_n, coords_output_file_n, save_cords_n, threshold)
     

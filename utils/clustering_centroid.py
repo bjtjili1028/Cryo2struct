@@ -47,6 +47,8 @@ def create_clusters(points, thres):
 
 # 計算每個聚類的質心並將結果寫入文件
 def centroid(file, save_cords, save_probs_aa , thres, save_ca_probs):
+# def centroid(file, save_cords, save_probs_aa , save_ca_probs):
+
     # Read the data from the file (從文件中讀取數據)
     points = []
     with open(file, 'r') as f:
@@ -67,7 +69,8 @@ def centroid(file, save_cords, save_probs_aa , thres, save_ca_probs):
     # Create the clusters
     # 根據閾值將點進行聚類
     clusters = create_clusters(points, thres=thres)
-
+    # clusters = [[p] for p in points]
+    
     # 打開結果文件以寫入結果
     with open(save_probs_aa,'w') as p:
         with open(save_cords, 'w') as f:
@@ -170,6 +173,7 @@ def main(config_dict):
     
     # 計算質心並保存結果
     centroid(cord_data, save_cords, save_probs_aa, config_dict['clustering_threshold'], save_ca_probs)
+    # centroid(cord_data, save_cords, save_probs_aa, save_ca_probs)
     
     # 返回保存的文件路徑
     return save_cords, save_probs_aa, save_ca_probs
