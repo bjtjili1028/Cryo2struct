@@ -350,8 +350,8 @@ def normalize_sum(coordinate_distance_matrix):
 
 # 根據正態分佈計算坐標距離的概率密度。
 def probability_density_function(coordinate_distance_matrix_dis, std_lambda):
-    computed_mean = 3.8047179727719045
-    computed_std = 0.03622304 * std_lambda
+    computed_mean = 3.8047179727719045 # 固定平均值 (Å)
+    computed_std = 0.03622304 * std_lambda # 標準差 = 基底值 × std_lambda
     p_norm = scipy.stats.norm(computed_mean,computed_std)
     probability_density_matrix  = p_norm.pdf(coordinate_distance_matrix_dis) # type: ignore
     return probability_density_matrix
@@ -468,7 +468,7 @@ def run_vitebi(key_idx, chain_observations, transition_matrix, emission_matrix, 
     # Load the C++ shared library (載入C++的viterbi庫)
     viterbi_algo_path = os.path.abspath(config_dict['input_data_dir'])
     viterbi_algo_path = os.path.dirname(viterbi_algo_path)
-    lib = ctypes.cdll.LoadLibrary(f'{viterbi_algo_path}/../../viterbi/viterbi.so')
+    lib = ctypes.cdll.LoadLibrary(f'{viterbi_algo_path}/viterbi/viterbi.so')
 
     # Define the C++ wrapper function
     wrapper_function = lib.viterbi_main
@@ -570,7 +570,6 @@ def run_vitebi(key_idx, chain_observations, transition_matrix, emission_matrix, 
 
         matching = bond_matching.bond_match(transition_dic,transition_dic_n,transition_dic_c, bm_p,return_matching=True)
         
-        
         # 3a. 輸出所有鄰居
         # save(save_filename=save_pdb_file, matching=matching, neighbor_mode="ALL")
 
@@ -586,17 +585,17 @@ def run_vitebi(key_idx, chain_observations, transition_matrix, emission_matrix, 
         print(f"Cryo2Struct Alignment: Run time {runtime_seconds:.2f} seconds ({runtime_minutes:.2f} minutes)")
 
         ######## clean up:  清理掉過程文件 這部分應該註解要 才可以輸出他的資料
-        map_directory_path = f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}"
+        # map_directory_path = f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}"
         
-        if os.path.exists(f"{map_directory_path}/{config_dict['density_map_name']}_amino_predicted.mrc"):
-            os.remove(f"{map_directory_path}/{config_dict['density_map_name']}_amino_predicted.mrc")
+        # if os.path.exists(f"{map_directory_path}/{config_dict['density_map_name']}_amino_predicted.mrc"):
+        #     os.remove(f"{map_directory_path}/{config_dict['density_map_name']}_amino_predicted.mrc")
             
-        if os.path.exists(f"{map_directory_path}/{config_dict['density_map_name']}_atom_predicted.mrc"):
-            os.remove(f"{map_directory_path}/{config_dict['density_map_name']}_atom_predicted.mrc")
+        # if os.path.exists(f"{map_directory_path}/{config_dict['density_map_name']}_atom_predicted.mrc"):
+        #     os.remove(f"{map_directory_path}/{config_dict['density_map_name']}_atom_predicted.mrc")
         
-        files_to_delete = glob.glob(os.path.join(map_directory_path, f"*.txt"))
-        for f in files_to_delete:
-            os.remove(f)
+        # files_to_delete = glob.glob(os.path.join(map_directory_path, f"*.txt"))
+        # for f in files_to_delete:
+        #     os.remove(f)
             
         # 生成並保存信心分數、概率、圖表
         print("Cryo2Struct: Finished!\n")
@@ -729,34 +728,14 @@ def main(coordinate_file, emission_file, config_dict, save_ca_probs):
     
     # # 1. 取得長度 (LEN)
     length_coordinate_list = len(coordinate_list)
-    print(f"--- 基本資訊 ---")
-    print(f"Alpha 碳原子數量 (LEN): {length_coordinate_list}")
-    print(f"計算總次數 (LEN x LEN): {length_coordinate_list * length_coordinate_list}")
-    print("-" * 30)
+    # print(f"--- 基本資訊 ---")
+    # print(f"Alpha 碳原子數量 (LEN): {length_coordinate_list}")
+    # print(f"計算總次數 (LEN x LEN): {length_coordinate_list * length_coordinate_list}")
+    # print("-" * 30)    
 
-    # print("正在執行優化後的寫法...")
-    # start_time = time.time()
-    # # 先確保轉為 numpy array
-    # coords_array = np.array(coordinate_list)
-    # # 使用 cdist 一行解決
-    # from scipy.spatial.distance import cdist
-    # coordinate_distance_matrix_fast = cdist(coords_array, coords_array, metric='euclidean')
-
-    # end_time = time.time()
-    # optimized_duration = end_time - start_time
-    # print(f"優化寫法執行時間: {optimized_duration:.5f} 秒")
-
-    
-
-    print("正在執行原本的雙重迴圈寫法 (可能需要一點時間)...")
-    start_time = time.time()
     for carbon_alpha in range(length_coordinate_list):
         for carbon_alpha_next in range(length_coordinate_list):
             coordinate_distance_matrix[carbon_alpha][carbon_alpha_next] = np.linalg.norm(np.array(coordinate_list[carbon_alpha]) - np.array(coordinate_list[carbon_alpha_next]))
-    end_time = time.time()
-    original_duration = end_time - start_time
-    print(f"原本寫法執行時間: {original_duration:.5f} 秒")
-
 
     coordinate_distance_matrix_dis = coordinate_distance_matrix
     coordinate_distance_matrix = probability_density_function(coordinate_distance_matrix_dis, config_dict['std_lambda'])
@@ -804,43 +783,91 @@ def main(coordinate_file, emission_file, config_dict, save_ca_probs):
         seq_c = seq_c.split("|")[1] 
         seq_c = re.sub(r'^[Cc]hains?\s*', '', seq_c) # 去掉開頭的 "Chains " 或 "Chain "
         seq_c = [seg.strip() for seg in seq_c.split(',')]
-        # seq_c  = seq_c.split(" ") 
-        # seq_c = seq_c[1:]
+
         for seq_chain in seq_c:
             seq_key = seq_chain.replace(",","").strip('\n')
             seq_key_list.append(seq_key)
             chains_sequence_dict[seq_key] = seq_lines[seq_contents + 1].strip('\n')
+
     for ke, va in chains_sequence_dict.items():
+        clean_ke = ke[0]
         length_va = len(va)
-        chain_list.extend(ke*length_va)
+        chain_list.extend(clean_ke*length_va)
 
     FASTA_end_time = time.time()
     print(f"[Time] : {FASTA_end_time - FASTA_start_time:.2f} seconds")
     
+    # ======================================================================
+    # 直接手動輸出聚類結果 PDB (不依賴全局 save 函式)
+    # ======================================================================
+    print("\n🚀 正在手動輸出聚類結果 PDB (確保座標不為 0)...")
+    
+    pre_cluster_pdb = f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/{config_dict['density_map_name']}_clusters_pre_hmm.pdb"
+    
+    # 讀取 C 和 N 的檔案以確保配對完整 (如果有的話)
+    def load_txt_coords(filename):
+        res = []
+        if os.path.exists(filename):
+            with open(filename, 'r') as f:
+                for line in f:
+                    parts = [float(x) for x in line.split() if x.strip()]
+                    if parts: res.append(parts)
+        return res
+
+    raw_ca = coordinate_list # 使用 main 已經讀好的
+    raw_c  = load_txt_coords(f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/{config_dict['density_map_name']}_cluster_transition_c.txt")
+    raw_n  = load_txt_coords(f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/{config_dict['density_map_name']}_cluster_transition_n.txt")
+
+    with open(pre_cluster_pdb, 'w') as f_out:
+        f_out.write("Author Cryo2Struct - Cluster Only\n")
+        atom_idx = 1
+        for i in range(len(raw_ca)):
+            res_num = i + 1
+            # 寫入 CA
+            x, y, z = raw_ca[i]
+            f_out.write(f"ATOM  {atom_idx:>5}  CA  VAL U{res_num:>4}    {x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C\n")
+            atom_idx += 1
+            
+            # 寫入 N (如果有的話)
+            if i < len(raw_n):
+                nx, ny, nz = raw_n[i]
+                f_out.write(f"ATOM  {atom_idx:>5}  N   VAL U{res_num:>4}    {nx:>8.3f}{ny:>8.3f}{nz:>8.3f}  1.00  0.00           N\n")
+                atom_idx += 1
+                
+            # 寫入 C (如果有的話)
+            if i < len(raw_c):
+                cx, cy, cz = raw_c[i]
+                f_out.write(f"ATOM  {atom_idx:>5}  C   VAL U{res_num:>4}    {cx:>8.3f}{cy:>8.3f}{cz:>8.3f}  1.00  0.00           C\n")
+                atom_idx += 1
+        f_out.write("END\n")
+
+    print(f"✅ 聚類後的 PDB 已生成至: {pre_cluster_pdb}")
+    # ======================================================================
+
     key_idx = 0
     print("Cryo2Struct Alignment: HMM Construction Complete!")
     print("fasta_seq_key_list :",seq_key_list)
     
-    # 把 cluster_transition_ca.txt 中每行当作一个 CA 聚类中心
+    # 讀取 cluster_transition_ca.txt 確認 ca 數量
     with open(f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/{config_dict['density_map_name']}_cluster_transition_ca.txt") as f:
         ca_centers = [l for l in f if l.strip()]
     num_ca = len(ca_centers)
-    print(f"CA 聚类中心数: {num_ca}")
+    print(f"CA 聚類後數量: {num_ca}")
 
 
     # 你程式里已經把序列讀到 chains_sequence_dict
     # 2a. 单条链长度
     for chain_id, seq in chains_sequence_dict.items():
-        print(f"链 {chain_id} 的残基数: {len(seq)}")
+        print(f"鏈 {chain_id} 的殘基數量: {len(seq)}")
 
     # 2b. 或所有链的残基总数
     total_residues = sum(len(seq) for seq in chains_sequence_dict.values())
-    print(f"所有链残基总数: {total_residues}")
+    print(f"所有鏈殘基總數: {total_residues}")
 
     if num_ca >= total_residues:
-        print("✅ CA 聚类中心 ≥ 残基总数，可以尝试一一对应。")
+        print("✅ CA 聚類數量 ≥ 殘基數量，可以嘗試一一對應。")
     else:
-        print("❌ CA 聚类中心 < 残基总数，可能会有残基配不到位置。")
+        print("❌ CA 聚類數量 < 殘基數量，可能會有殘基配不到位置。")
 
     execute(key_idx=key_idx, states=states,transition_matrix=coordinate_distance_matrix, emission_matrix=emission_matrix_aa, config_dict =config_dict, save_ca_probs=save_ca_probs, emission_matrix_dl=emission_matrix_dl)
     exit()

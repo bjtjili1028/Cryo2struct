@@ -30,7 +30,7 @@ def distance(p1, p2):
 def create_clusters(points, thres):
     clusters = [] # 存儲聚類結果
     while points:
-        # 隨機選擇一個點並將其分配到新的一個聚類中
+        # 每次都會取出當前列表中的第一個點作為新群集的「中心」或「種子」
         # Select a point randomly and assign it to a new cluster
         cluster = [points.pop(0)]
         # 遍歷其餘的點，若與當前聚類中心的距離小於閾值，則加入該聚類
@@ -46,8 +46,8 @@ def create_clusters(points, thres):
     return clusters
 
 # 計算每個聚類的質心並將結果寫入文件
-def centroid(file, save_cords, save_probs_aa , thres, save_ca_probs):
-# def centroid(file, save_cords, save_probs_aa , save_ca_probs):
+# def centroid(file, save_cords, save_probs_aa , thres, save_ca_probs):
+def centroid(file, save_cords, save_probs_aa , save_ca_probs):
 
     # Read the data from the file (從文件中讀取數據)
     points = []
@@ -68,8 +68,8 @@ def centroid(file, save_cords, save_probs_aa , thres, save_ca_probs):
 
     # Create the clusters
     # 根據閾值將點進行聚類
-    clusters = create_clusters(points, thres=thres)
-    # clusters = [[p] for p in points]
+    # clusters = create_clusters(points, thres=thres)
+    clusters = [[p] for p in points]
     
     # 打開結果文件以寫入結果
     with open(save_probs_aa,'w') as p:
@@ -172,8 +172,8 @@ def main(config_dict):
     proc_probabilities_aa(cord_probs_aa, cords_prob_atom)
     
     # 計算質心並保存結果
-    centroid(cord_data, save_cords, save_probs_aa, config_dict['clustering_threshold'], save_ca_probs)
-    # centroid(cord_data, save_cords, save_probs_aa, save_ca_probs)
+    # centroid(cord_data, save_cords, save_probs_aa, config_dict['clustering_threshold'], save_ca_probs)
+    centroid(cord_data, save_cords, save_probs_aa, save_ca_probs)
     
     # 返回保存的文件路徑
     return save_cords, save_probs_aa, save_ca_probs

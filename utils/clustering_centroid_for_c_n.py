@@ -37,73 +37,73 @@ def create_clusters(points, thres):
     return clusters
 
 # 從檔案讀取資料、提取座標與機率，進行聚類並計算每個聚類的質心與平均機率
-def centroid_with_prob(input_file, combined_output_file, coords_output_file, prob_output_file, thres):
-    points = []
-    with open(input_file, 'r') as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                # 假設每行格式為 "[x, y, z], 機率值"
-                coord_part, prob_part = line.split("],", 1)
-                coord_str = coord_part + "]"  # 補上右括號
-                coord = ast.literal_eval(coord_str)
-                prob = float(prob_part.strip())
-                # 只取前三個數字作為座標
-                points.append(Point(coord[0], coord[1], coord[2], prob))
-            except Exception as e:
-                print("解析錯誤:", line, e)
-                continue
-
-    # 根據指定閾值進行聚類
-    clusters = create_clusters(points, thres)
-
-    # 分別寫入三個輸出檔案
-    with open(combined_output_file, 'w') as f_combined, \
-         open(coords_output_file, 'w') as f_coords, \
-         open(prob_output_file, 'w') as f_prob:
-        for cluster in clusters:
-            n = len(cluster)
-            if n == 0:
-                continue
-            x_avg = sum(p.x for p in cluster) / n
-            y_avg = sum(p.y for p in cluster) / n
-            z_avg = sum(p.z for p in cluster) / n
-            prob_avg = sum(p.prob for p in cluster if p.prob is not None) / n
-            f_combined.write(f"{x_avg} {y_avg} {z_avg}, {prob_avg}\n")
-            f_coords.write(f"{x_avg} {y_avg} {z_avg}\n")
-            f_prob.write(f"{prob_avg}\n")
-
-
-# def centroid_with_prob(input_file, combined_output_file, coords_output_file, prob_output_file, thres=None):
-#     """
-#     不做 clustering，只負責讀取 input 檔並拆成三個輸出檔
-#     """
-#     with open(input_file, 'r') as f_in, \
-#          open(combined_output_file, 'w') as f_combined, \
-#          open(coords_output_file, 'w') as f_coords, \
-#          open(prob_output_file, 'w') as f_prob:
-
-#         for line in f_in:
+# def centroid_with_prob(input_file, combined_output_file, coords_output_file, prob_output_file, thres):
+#     points = []
+#     with open(input_file, 'r') as f:
+#         for line in f:
 #             line = line.strip()
 #             if not line:
 #                 continue
 #             try:
-#                 # 假設每行格式為 "[x, y, z], prob"
+#                 # 假設每行格式為 "[x, y, z], 機率值"
 #                 coord_part, prob_part = line.split("],", 1)
-#                 coord = ast.literal_eval(coord_part + "]")
+#                 coord_str = coord_part + "]"  # 補上右括號
+#                 coord = ast.literal_eval(coord_str)
 #                 prob = float(prob_part.strip())
-
-#                 x, y, z = coord[:3]
-
-#                 f_combined.write(f"{x} {y} {z}, {prob}\n")
-#                 f_coords.write(f"{x} {y} {z}\n")
-#                 f_prob.write(f"{prob}\n")
-
+#                 # 只取前三個數字作為座標
+#                 points.append(Point(coord[0], coord[1], coord[2], prob))
 #             except Exception as e:
 #                 print("解析錯誤:", line, e)
 #                 continue
+
+#     # 根據指定閾值進行聚類
+#     clusters = create_clusters(points, thres)
+
+#     # 分別寫入三個輸出檔案
+#     with open(combined_output_file, 'w') as f_combined, \
+#          open(coords_output_file, 'w') as f_coords, \
+#          open(prob_output_file, 'w') as f_prob:
+#         for cluster in clusters:
+#             n = len(cluster)
+#             if n == 0:
+#                 continue
+#             x_avg = sum(p.x for p in cluster) / n
+#             y_avg = sum(p.y for p in cluster) / n
+#             z_avg = sum(p.z for p in cluster) / n
+#             prob_avg = sum(p.prob for p in cluster if p.prob is not None) / n
+#             f_combined.write(f"{x_avg} {y_avg} {z_avg}, {prob_avg}\n")
+#             f_coords.write(f"{x_avg} {y_avg} {z_avg}\n")
+#             f_prob.write(f"{prob_avg}\n")
+
+
+def centroid_with_prob(input_file, combined_output_file, coords_output_file, prob_output_file, thres=None):
+    """
+    不做 clustering，只負責讀取 input 檔並拆成三個輸出檔
+    """
+    with open(input_file, 'r') as f_in, \
+         open(combined_output_file, 'w') as f_combined, \
+         open(coords_output_file, 'w') as f_coords, \
+         open(prob_output_file, 'w') as f_prob:
+
+        for line in f_in:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                # 假設每行格式為 "[x, y, z], prob"
+                coord_part, prob_part = line.split("],", 1)
+                coord = ast.literal_eval(coord_part + "]")
+                prob = float(prob_part.strip())
+
+                x, y, z = coord[:3]
+
+                f_combined.write(f"{x} {y} {z}, {prob}\n")
+                f_coords.write(f"{x} {y} {z}\n")
+                f_prob.write(f"{prob}\n")
+
+            except Exception as e:
+                print("解析錯誤:", line, e)
+                continue
 
 
 # 範例使用
@@ -138,8 +138,8 @@ def main(config_dict):
             os.remove(file)
     
     # 依據設定的閾值進行聚類，並計算每個群組的質心與平均機率
-    threshold = config_dict['clustering_threshold']
-    # threshold = None
+    # threshold = config_dict['clustering_threshold']
+    threshold = None
     centroid_with_prob(cord_data_c, combined_output_file_c, coords_output_file_c, save_cords_c, threshold)
     centroid_with_prob(cord_data_n, combined_output_file_n, coords_output_file_n, save_cords_n, threshold)
     
