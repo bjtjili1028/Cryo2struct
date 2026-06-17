@@ -1,14 +1,53 @@
-density_map_name: '34610'
+density_map_name: '24794'
 input_data_dir: '/media/ray-suen/TRANSCEND1/huei/Cryo2Struct/input' # provide absolute path of input directory
 amino_checkpoint: '/media/ray-suen/TRANSCEND1/huei/Cryo2Struct/models/amino_acid_type.ckpt' # provide absolute path of amino acid checkpoint
 atom_checkpoint: '/media/ray-suen/TRANSCEND1/huei/Cryo2Struct/models/atom_type.ckpt' # provide absolute path of atom checkpoint
 confidence_score_models: '/media/ray-suen/TRANSCEND1/huei/Cryo2Struct/models' # provide absolute path of models directory
 infer_run_on: 'gpu' # options- cpu or gpu
 infer_on_gpu: 0
-split_mod: 1 # 1是取最大機率值  2是取0.4當作標準
-threshold: 0.4 # threshold for picking carbon alpha atoms
-clustering_threshold: 3 # clustering proximity
-CA_C_DIST: 2 # C–CA 最大允許距離
-CA_N_DIST: 2 # N–CA 最大允許距離
+
+# split_mod: 2 # 1是取最大機率值  2是取0.4當作標準
+# threshold: 0.4 # threshold for picking carbon alpha atoms
+# clustering_threshold: 2 # clustering proximity
+# CA_C_DIST: 2 # C–CA 最大允許距離
+# CA_N_DIST: 2 # N–CA 最大允許距離
+
 use_sequence: 'full' # options- full or atomic_chain
 std_lambda: 10
+
+# new parms
+coverage_factor : 2.0
+ca_mult : 0.9
+n_mult : 1.0
+c_mult : 0.9
+
+nms_radius : 1.9
+
+bond_matching:
+  # ---- 半徑 ----
+  r_ca_c_max: 4.5
+  r_ca_n_max: 3.5
+  r_ca_c_low: 1.0
+  r_ca_n_low: 1.0
+
+  # ---- 角度條件 ----
+  use_angle: false
+  angle_target: 110.0
+  angle_tol: 25.0
+  w_angle: 0.7
+
+  # ---- 鍵長視窗 ----
+  bondlen_window: false
+  ca_c_len_lo: 1.3
+  ca_c_len_hi: 1.9
+  ca_n_len_lo: 1.2
+  ca_n_len_hi: 1.8
+
+  # ---- 距離成本 ----
+  distance_power: 1.3
+  w_dist_c: 0.9
+  w_dist_n: 0.7
+
+  # ---- 匹配策略 ----
+  exclusive_match: true
+  select_priority: "prob_then_distance"
